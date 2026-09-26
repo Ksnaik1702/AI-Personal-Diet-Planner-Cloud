@@ -1,2 +1,4 @@
 fastapi
 uvicorn[standard]
+google-genai>=2.25.0
+python-dotenv>=1.2.3

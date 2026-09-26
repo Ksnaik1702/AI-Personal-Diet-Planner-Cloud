@@ -1,25 +1,42 @@
 # AI-Powered Personal Diet Planner with Cloud Storage
 
-A student cloud-computing project demonstrating a React frontend, FastAPI backend, Firebase Authentication, user-scoped Firestore data, and rule-based sample plan generation. Use synthetic/demo profile details only. Meal ideas are educational examples, not medical or clinical nutrition advice.
+A student project prototype with a React and Vite frontend, a FastAPI backend, Firebase Authentication, user-scoped Firestore records, and optional Gemini-assisted meal selection. It is an educational project, not a medical or clinical nutrition service. Use synthetic profile information while developing.
 
-## Current architecture
+## Current features
 
-- `frontend/` — React + Vite app with Firebase email/password sign-in.
-- `backend/` — FastAPI service with profile validation and a deterministic sample-plan endpoint.
-- Firebase Authentication — identifies signed-in demo users.
-- Cloud Firestore — stores each user's profile and generated plans under `users/{uid}/...`.
-- `firestore.rules` — restricts profile and plan documents to the signed-in user whose UID matches the document path.
-- `frontend/src/localObjectStorage.js` — simulates object storage in browser IndexedDB and provides a plan JSON download.
+- Create an account, sign in, and sign out with Firebase Authentication.
+- Save a profile and generated plans in the signed-in user's Firestore records.
+- Generate meal ideas from a predefined, ingredient-catalogued menu.
+- When configured, Gemini arranges choices from the server-filtered menu. The server validates every selected meal name and ingredient list before returning the plan.
+- If Gemini is not configured or unavailable, the local rule-based planner generates the plan instead.
+- Browse saved plans and download a JSON copy. The downloaded copy is held in this browser's IndexedDB; it is not Firebase Cloud Storage.
 
-## Storage note
+## Architecture
 
-Firebase Cloud Storage is not enabled in this project. Firebase currently requires the pay-as-you-go Blaze plan to provision or use a Cloud Storage bucket. This project is staying on the no-cost Spark plan, so plan files use the local IndexedDB simulator instead. Firestore remains the real cloud database. The local simulator does not sync files to other devices.
+- `frontend/` — React + Vite user interface and Firebase client integration.
+- `backend/` — FastAPI profile validation and plan-generation endpoint.
+- Gemini API — optional server-side meal arrangement; the API key stays in the backend environment.
+- Cloud Firestore — stores profiles and saved plans under `users/{uid}/...`.
+- `firestore.rules` — restricts those profile and plan documents to the signed-in user whose UID matches the path.
 
-If a Firebase Storage bucket is enabled later, the project can replace the local adapter with Firebase Storage and publish per-user Storage Security Rules. Review the current [Firebase Storage pricing requirements](https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024) before changing billing.
+## Configure the Gemini key
+
+Copy `backend/.env.example` to `backend/.env`, then add your Gemini API key to `GEMINI_API_KEY`. The `.env` file is ignored by Git. Never commit or share it. The default model is `gemini-3.8-flash`; set `GEMINI_MODEL` in the backend `.env` if you need to use a different model available to your account.
+
+Use made-up profile details during development. Free-tier model availability and quotas can change. Do not send real health or allergy details to an AI provider unless you have reviewed its current data and privacy terms.
 
 ## Run locally
 
 Keep the frontend and backend in separate PowerShell windows.
+
+Backend:
+
+```powershell
+cd backend
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app
+```
 
 Frontend:
 
@@ -29,22 +46,16 @@ npm install
 npm run dev
 ```
 
-Backend:
+The frontend runs at `http://localhost:5173/`; the API documentation is at `http://127.0.0.1:8000/docs`.
 
-```powershell
-cd backend
-.\.venv\Scripts\Activate.ps1
-python -m uvicorn app.main:app
-```
+## Storage note
 
-The frontend runs at `http://localhost:5173/`; the API docs run at `http://127.0.0.1:8000/docs`.
+Firebase Cloud Storage is not enabled. Profile and plan records use Cloud Firestore, but downloaded plan files are stored in browser IndexedDB and do not sync to other devices. This project does not currently support cloud file uploads.
 
-The local Firebase client settings are in `frontend/.env.local`, which is excluded by `.gitignore`. Do not commit private service-account keys. The Firebase web config is public client configuration; protect data with Firebase Security Rules.
+## Limitations and next work
 
-## Current limitations and next work
-
-- The plan engine uses fixed sample ideas, a local ingredient catalog, and allergen tags. It removes matching menu items and flags avoid-food entries with no exact catalog match for review. It does not calculate calories, portions, nutrition, or cost, and it cannot check product labels, recipe variations, incomplete ingredient data, or kitchen cross-contact. Plans are not a guarantee of allergen safety.
-- The API currently accepts requests without verifying Firebase ID tokens. Keep it local/demo-only until backend authentication is added before deployment.
-- The plan-history screen displays the latest ten saved plans for the signed-in user.
-- Allergy terms outside the planner's supported alias list stop generation rather than being silently ignored.
-- Add authenticated backend requests, automated tests, deployment instructions, screenshots, and interview documentation before presenting the project as production-ready.
+- Gemini can select and arrange only meals in the predefined menu. If the key is missing, a request fails, or the response fails validation, the local rule-based planner is used.
+- Allergy and food exclusions are checked against a limited ingredient list. Ingredient variations, packaged-food labels, missing ingredients, and kitchen cross-contact are not checked. Review every ingredient and label; the planner cannot guarantee allergen safety.
+- The app does not calculate calories, portions, macros, nutrition, hydration, or budget. It does not track daily intake or progress.
+- The FastAPI endpoints do not yet verify Firebase ID tokens. Keep the backend local; it is not ready for public deployment.
+- Firebase Cloud Storage, cloud deployment, automated tests, and the full report, screenshot, and interview materials described in the course specification are not implemented yet.

@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-from .planner import generate_sample_plan
+from .planner import generate_personalized_plan
 
 app = FastAPI(
     title="AI-Powered Personal Diet Planner API",
@@ -54,8 +54,8 @@ def create_profile(profile: ProfileInput) -> dict[str, object]:
 
 @app.post("/plans/generate", tags=["plans"])
 def create_sample_plan(profile: ProfileInput) -> dict[str, object]:
-    """Generate a deterministic, educational meal-idea plan."""
-    plan = generate_sample_plan(profile.model_dump())
+    """Generate AI-arranged educational meal ideas with a local fallback."""
+    plan = generate_personalized_plan(profile.model_dump())
     if plan["blocked"]:
         raise HTTPException(status_code=422, detail=plan["message"])
     plan.pop("blocked")

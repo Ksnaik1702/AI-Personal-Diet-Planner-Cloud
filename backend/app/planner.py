@@ -1,10 +1,43 @@
-"""Rule-based meal ideas filtered against a structured demo ingredient catalog."""
+"""AI-assisted meal selection over a locally checked ingredient catalog."""
 
 from datetime import datetime, timezone
+import json
+import logging
+import os
 import random
 import re
+from pathlib import Path
 from uuid import uuid4
 
+from dotenv import load_dotenv
+from google import genai
+
+
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+logger = logging.getLogger(__name__)
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+
+AI_PLAN_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "days": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "day": {"type": "integer"},
+                    "breakfast": {"type": "string"},
+                    "lunch": {"type": "string"},
+                    "dinner": {"type": "string"},
+                },
+                "required": ["day", "breakfast", "lunch", "dinner"],
+                "additionalProperties": False,
+            },
+        }
+    },
+    "required": ["days"],
+    "additionalProperties": False,
+}
 
 MEAL_INGREDIENTS = {
     "Vegetable poha with apple (no peanut garnish)": ("poha", "flattened rice", "potato", "peas", "onion", "apple", "lemon", "sunflower oil", "turmeric"),
@@ -325,3 +358,92 @@ def generate_sample_plan(profile: dict[str, object]) -> dict[str, object]:
         "days": daily_meals,
         "notes": notes,
     }
+
+
+def generate_personalized_plan(profile: dict[str, object]) -> dict[str, object]:
+    """Use Gemini to arrange verified menu choices, with a local fallback."""
+    fallback = generate_sample_plan(profile)
+    if fallback["blocked"]:
+        return fallback
+
+    api_key = os.getenv("GEMINI_API_KEY", "").strip()
+    if not api_key:
+        fallback["engine"] = "Rule-based fallback (AI key not configured)"
+        fallback["notes"].append("AI generation is not configured; this plan was assembled using local meal-selection rules.")
+        return fallback
+
+    diet = str(profile.get("diet", ""))
+    allergens, avoid_terms = parse_allergens(str(profile.get("allergies", "")))
+    available: dict[str, dict[str, dict[str, object]]] = {}
+    for slot, meals in MEAL_IDEAS[diet].items():
+        available[slot] = {
+            item["name"]: item for item in meals
+            if not (item["allergens"] & allergens)
+            and not (item["ingredientTerms"] & avoid_terms)
+        }
+
+    if any(not meals for meals in available.values()):
+        fallback["engine"] = "Rule-based fallback (no meals available for every slot)"
+        fallback["notes"].append("The local meal selector was used because the current menu has no matching option for every meal slot.")
+        return fallback
+
+    allowed_names = {slot: list(meals) for slot, meals in available.items()}
+    days = len(fallback["days"])
+    # Only send non-sensitive preferences and already-filtered recipe names.
+    # Raw allergy entries and body measurements stay on this server.
+    prompt_data = {
+        "diet_style": diet,
+        "goal": str(profile.get("goal", "balanced")),
+        "cuisine_preference": str(profile.get("cuisine", ""))[:200],
+        "number_of_days": days,
+        "available_meals_by_slot": allowed_names,
+    }
+    prompt = (
+        "Create a varied, general-education meal idea schedule. You must choose each meal name "
+        "exactly from the available_meals_by_slot list for that slot. Never invent, rename, or "
+        "modify a recipe, and do not add ingredients, calories, quantities, or medical claims. "
+        "Use day numbers from 1 through number_of_days in order. The menu was filtered on the "
+        "server; do not override its choices. Return only data matching the requested JSON schema.\n\n"
+        + json.dumps(prompt_data, ensure_ascii=False)
+    )
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.interactions.create(
+            model=GEMINI_MODEL,
+            input=prompt,
+            store=False,
+            response_format={
+                "type": "text",
+                "mime_type": "application/json",
+                "schema": AI_PLAN_RESPONSE_SCHEMA,
+            },
+        )
+        generated = json.loads(response.output_text or "")
+        generated_days = generated.get("days")
+        if not isinstance(generated_days, list) or len(generated_days) != days:
+            raise ValueError("Gemini returned an unexpected number of plan days")
+
+        meal_by_slot_and_name = available
+        validated_days: list[dict[str, object]] = []
+        for index, generated_day in enumerate(generated_days, start=1):
+            if generated_day.get("day") != index:
+                raise ValueError("Gemini returned invalid day ordering")
+            validated: dict[str, object] = {"day": index}
+            for slot in ("breakfast", "lunch", "dinner"):
+                name = generated_day.get(slot)
+                recipe = meal_by_slot_and_name[slot].get(name) if isinstance(name, str) else None
+                if recipe is None:
+                    raise ValueError("Gemini selected a meal outside the filtered menu")
+                validated[slot] = name
+                validated[f"{slot}Ingredients"] = list(recipe["ingredients"])
+            validated_days.append(validated)
+
+        fallback["days"] = validated_days
+        fallback["engine"] = f"Gemini AI meal planner ({GEMINI_MODEL})"
+        return fallback
+    except Exception:
+        logger.exception("Gemini plan generation failed; using the local rule-based fallback")
+        fallback["engine"] = "Rule-based fallback (AI unavailable)"
+        fallback["notes"].append("AI generation was unavailable, so this plan was assembled using local meal-selection rules.")
+        return fallback
