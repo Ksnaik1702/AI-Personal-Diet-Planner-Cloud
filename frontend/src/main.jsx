@@ -252,7 +252,7 @@ function PlannerForm({ user, onSignOut }) {
         <div className="topbar-account"><span className="topbar-note"><span className="status-dot" /> {user.email}</span><button className="signout-button" type="button" onClick={onSignOut}>Sign out</button></div>
       </header>
 
-      <main className="page" id="top">
+      <main className={`page ${screen === 'plans' ? 'page-plans' : ''}`} id="top">
         {screen === 'profile' && <section className="intro">
           <p className="eyebrow">YOUR PERSONAL FOOD COMPASS</p>
           <h1>A plan that starts<br />with <em>you.</em></h1>

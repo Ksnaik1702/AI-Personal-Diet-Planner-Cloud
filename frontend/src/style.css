@@ -28,6 +28,7 @@ button, input, select { font: inherit; }
 .signout-button { color: #52675a; background: transparent; border: 1px solid #dce4da; border-radius: 6px; padding: 7px 11px; font-size: 10px; cursor: pointer; }
 .signout-button:hover { background: #eef3eb; }
 .page { width: min(1190px, 88%); margin: 0 auto; padding: 74px 0 68px; display: grid; grid-template-columns: .78fr 1.22fr; gap: clamp(42px, 7vw, 100px); align-items: start; }
+.page-plans { width: min(1720px, 94%); grid-template-columns: minmax(0, 1fr); padding-top: clamp(36px, 5vh, 64px); }
 .intro { padding: 26px 0 0 8px; }
 .eyebrow { color: #78867a; font-weight: 700; font-size: 10px; letter-spacing: 1.8px; margin: 0 0 18px; }
 .intro h1 { font-family: 'Playfair Display', Georgia, serif; font-weight: 600; font-size: clamp(44px, 5.2vw, 67px); line-height: 1.08; letter-spacing: -1.8px; margin: 0; color: #243d31; }
@@ -91,7 +92,8 @@ input:focus, select:focus { border-color: #7f9c82; box-shadow: 0 0 0 3px rgba(93
 .back-to-profile:hover { color: #244936; text-decoration: underline; }
 .plan-page-title { margin-top: 20px; }
 .plan-preview-heading { align-items: flex-end; margin-bottom: 15px; }
-.plan-preview-actions { display: flex; align-items: center; gap: 8px; }
+.plan-preview-heading > div:first-child { min-width: 0; flex: 1; }
+.plan-preview-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .plan-style { color: #54745a; background: #edf4eb; border-radius: 20px; font-size: 9px; padding: 7px 10px; text-transform: capitalize; }
 .download-button { color: #42644b; border: 1px solid #dce7da; border-radius: 6px; background: #fff; font-size: 9px; font-weight: 600; padding: 7px 9px; cursor: pointer; }
 .download-button:hover { background: #f0f5ee; }
@@ -135,6 +137,7 @@ input:focus, select:focus { border-color: #7f9c82; box-shadow: 0 0 0 3px rgba(93
 
 @media (max-width: 900px) {
   .page { width: min(700px, 90%); grid-template-columns: 1fr; gap: 34px; padding-top: 45px; }
+  .page-plans { width: 94%; gap: 0; padding-top: 38px; }
   .intro { padding: 0; }
   .intro h1 br { display: none; }
   .intro-copy { max-width: 520px; margin-bottom: 23px; }
@@ -148,6 +151,7 @@ input:focus, select:focus { border-color: #7f9c82; box-shadow: 0 0 0 3px rgba(93
   .topbar { height: 64px; padding: 0 5%; }
   .topbar-note { font-size: 10px; }
   .page { width: 92%; padding-top: 34px; gap: 28px; }
+  .page-plans { width: 92%; padding-top: 28px; gap: 0; }
   .intro h1 { font-size: 46px; }
   .intro-copy { font-size: 13px; }
   .form-card { padding: 23px 18px; }
